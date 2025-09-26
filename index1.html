@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Automatic Light On/Off Demo</title>
+  <style>
+    :root{
+      --bg:#0f1724;
+      --card:#0b1220;
+      --text:#e6eef8;
+      --accent:#ffd166;
+      --muted:#98a0b3;
+    }
+    body{
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background: linear-gradient(180deg,#071025 0%, #0f1b2b 100%);
+      color:var(--text);
+      margin:0;
+      display:flex;
+      min-height:100vh;
+      align-items:center;
+      justify-content:center;
+      padding:28px;
+    }
+    .panel{
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.12));
+      border-radius:14px;
+      padding:22px;
+      width:720px;
+      box-shadow: 0 10px 30px rgba(2,6,23,0.6);
+      display:grid;
+      grid-template-columns: 320px 1fr;
+      gap:18px;
+      align-items:center;
+    }
+    h1{ margin:0 0 8px 0; font-size:20px;}
+    p.desc{ color:var(--muted); margin:6px 0 12px 0; font-size:13px;}
+    .bulb-wrap{
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      align-items:center;
+    }
+
+    /* Bulb */
+    .bulb{
+      width:180px;
+      height:220px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      position:relative;
+      transition: filter .35s ease, box-shadow .35s ease;
+      border-radius:100px;
+    }
+    .bulb .glass{
+      width:130px;
+      height:160px;
+      border-radius:80px;
+      background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.9), rgba(255,255,255,0.2) 8%, rgba(255,255,255,0.05) 20%, rgba(255,255,255,0.02) 30%, rgba(0,0,0,0.1) 100%);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      box-shadow: 0 0 30px rgba(255,210,100,0.0);
+      transition: box-shadow .3s ease, background .3s ease, transform .2s ease;
+      position:relative;
+    }
+    .filament{
+      width:40px; height:40px; border-radius:20px;
+      background:linear-gradient(180deg,#fff2c6,#fff9e8);
+      box-shadow: 0 6px 20px rgba(255,210,100,0.15) inset;
+      transform: translateY(20px) scale(.9);
+      opacity:0;
+      transition: opacity .35s ease, transform .35s ease;
+    }
+    .base{
+      width:84px;
+      height:36px;
+      border-radius:6px;
+      background: linear-gradient(180deg,#3d4652,#1b2430);
+      margin-top:-6px;
+      box-shadow: 0 6px 14px rgba(0,0,0,0.6);
+    }
+    .bulb.on .glass{
+      box-shadow: 0 0 120px rgba(255,200,60,0.25);
+      background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.95), rgba(255,255,255,0.3) 8%, rgba(255,245,200,0.07) 20%, rgba(0,0,0,0.02) 30%);
+    }
+    .bulb.on .filament{
+      opacity:1;
+      transform: translateY(0) scale(1);
+      box-shadow: 0 0 40px rgba(255,200,60,0.6);
+    }
+
+    /* Controls */
+    .controls{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    .row{ display:flex; gap:10px; align-items:center; }
+    label{ font-size:13px; color:var(--muted); }
+    .big{
+      font-weight:600; color:var(--text);
+    }
+
+    .toggle{
+      display:inline-grid; grid-auto-flow:column; gap:8px; align-items:center;
+    }
+    .btn{
+      padding:8px 12px; border-radius:10px; background:transparent; border:1px solid rgba(255,255,255,0.06); color:var(--text); cursor:pointer;
+    }
+    .btn.primary{
+      background:linear-gradient(90deg,#ffd166,#ffb84f); color:#07122a; border:0;
+      box-shadow: 0 6px 24px rgba(255,170,60,0.12);
+    }
+    input[type="range"]{ width:100%; }
+    .small{ font-size:12px; color:var(--muted); }
+    .status{ padding:8px 10px; border-radius:8px; background:rgba(255,255,255,0.02); font-size:14px; }
+    .schedule input{ width:70px; padding:6px 8px; border-radius:8px; border:1px solid rgba(255,255,255,0.04); background:transparent; color:var(--text); }
+    footer{ grid-column:1/3; font-size:12px; color:var(--muted); text-align:center; margin-top:8px; }
+  </style>
+</head>
+<body>
+  <div class="panel" role="application" aria-label="Automatic light control demo">
+    <div>
+      <h1>Automatic Light — Demo</h1>
+      <p class="desc">This demo turns the light on/off automatically using (1) time rules, (2) ambient-light simulation, and (3) manual override. Works entirely in your browser.</p>
+
+      <div class="bulb-wrap" aria-hidden="false">
+        <div id="bulb" class="bulb" aria-live="polite" aria-atomic="true">
+          <div class="glass" role="img" aria-label="Light bulb">
+            <div class="filament"></div>
+          </div>
+        </div>
+        <div class="base" aria-hidden="true"></div>
+      </div>
+
+      <div style="margin-top:12px;display:flex;gap:8px;align-items:center;justify-content:center;">
+        <button id="manualOn" class="btn primary" title="Turn light on manually">Turn On</button>
+        <button id="manualOff" class="btn" title="Turn light off manually">Turn Off</button>
+      </div>
+    </div>
+
+    <div class="controls" aria-hidden="false">
+      <div class="row">
+        <div style="flex:1;">
+          <div class="small">Mode</div>
+          <div style="display:flex;gap:8px;margin-top:6px;">
+            <label><input type="checkbox" id="autoMode" checked> Automatic</label>
+            <label><input type="checkbox" id="useAmbient"> Use ambient sensor</label>
+            <label><input type="checkbox" id="allowManual" checked> Manual allowed</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div style="flex:1;">
+          <div class="small">Ambient light (simulate sensor) — lower is darker</div>
+          <input id="ambientSlider" type="range" min="0" max="100" value="80" aria-label="Ambient light slider">
+          <div class="small">Ambient value: <span id="ambientValue">80</span></div>
+        </div>
+      </div>
+
+      <div class="row schedule">
+        <div style="flex:1;">
+          <div class="small">Schedule (24-hour) — auto uses these by default</div>
+          <div style="display:flex;gap:6px;margin-top:6px;align-items:center">
+            <label class="small">On at <input id="onHour" type="number" min="0" max="23" value="18">:00</label>
+            <label class="small">Off at <input id="offHour" type="number" min="0" max="23" value="6">:00</label>
+            <button id="applySchedule" class="btn" title="Apply schedule">Apply</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div style="flex:1;">
+          <div class="small">Current local time</div>
+          <div class="status" id="timeDisplay">--:--:--</div>
+        </div>
+        <div style="width:140px">
+          <div class="small">Light status</div>
+          <div class="status" id="lightStatus">Unknown</div>
+        </div>
+      </div>
+
+      <footer>Tip: Toggle "Use ambient sensor" to see the slider affect automatic behavior.</footer>
+    </div>
+  </div>
+
+<script>
+  // Simple automatic light logic:
+  // - Automatic mode checks either schedule or ambient sensor when enabled.
+  // - Manual buttons override when allowManual is checked; if Auto mode is off, manual stays.
+  // - Poll every second for UI time, and every 5 seconds apply auto decision.
+  (function(){
+    const bulb = document.getElementById('bulb');
+    const manualOn = document.getElementById('manualOn');
+    const manualOff = document.getElementById('manualOff');
+    const autoMode = document.getElementById('autoMode');
+    const useAmbient = document.getElementById('useAmbient');
+    const allowManual = document.getElementById('allowManual');
+    const ambientSlider = document.getElementById('ambientSlider');
+    const ambientValueSpan = document.getElementById('ambientValue');
+    const onHourInput = document.getElementById('onHour');
+    const offHourInput = document.getElementById('offHour');
+    const applySchedule = document.getElementById('applySchedule');
+    const timeDisplay = document.getElementById('timeDisplay');
+    const lightStatus = document.getElementById('lightStatus');
+
+    // State
+    let lightOn = false;
+    let manualOverride = false; // true if user manually set recently
+    let schedule = { on: 18, off: 6 }; // default: on at 18:00 (6pm), off at 06:00 (6am)
+
+    function formatTime(d){
+      return d.toLocaleTimeString();
+    }
+
+    function updateTimeUI(){
+      const now = new Date();
+      timeDisplay.textContent = formatTime(now);
+    }
+
+    function applyVisualState(){
+      if(lightOn){
+        bulb.classList.add('on');
+        lightStatus.textContent = 'ON';
+        lightStatus.style.color = '';
+      } else {
+        bulb.classList.remove('on');
+        lightStatus.textContent = 'OFF';
+        lightStatus.style.color = '';
+      }
+    }
+
+    function isWithinSchedule(now){
+      const h = now.getHours();
+      // schedule.on -> schedule.off may cross midnight
+      if(schedule.on === schedule.off) return false; // weird case: same hour -> treat as off
+      if(schedule.on < schedule.off){
+        // same day
+        return (h >= schedule.on && h < schedule.off);
+      } else {
+        // crosses midnight (e.g., on 18, off 6)
+        return (h >= schedule.on || h < schedule.off);
+      }
+    }
+
+    function decideAuto(now){
+      // Priority:
+      // - If useAmbient: use ambient threshold (lower -> darker -> turn ON)
+      // - Else use schedule (time-of-day)
+      if(useAmbient.checked){
+        const ambient = parseInt(ambientSlider.value,10); // 0 (dark) -> 100 (bright)
+        const threshold = 40; // configurable: below threshold = dark
+        return ambient < threshold;
+      } else {
+        return isWithinSchedule(now);
+      }
+    }
+
+    // Main loop: evaluate whether to turn on/off
+    function evaluate(){
+      const now = new Date();
+      if(autoMode.checked && !manualOverride){
+        const shouldBeOn = decideAuto(now);
+        setLight(shouldBeOn, /*reason*/ 'auto');
+      }
+      // If auto mode is off, do nothing (manual controls apply)
+    }
+
+    // setLight( state, reason )
+    function setLight(state, reason = 'manual'){
+      if(lightOn === state) return;
+      lightOn = state;
+      applyVisualState();
+      // update status text
+      lightStatus.textContent = state ? 'ON' : 'OFF';
+      // for accessibility: announce reason briefly (visually)
+      if(reason === 'manual'){
+        lightStatus.textContent += ' (manual)';
+      } else if(reason === 'auto'){
+        lightStatus.textContent += ' (auto)';
+      }
+    }
+
+    // Manual buttons
+    manualOn.addEventListener('click', () => {
+      if(!allowManual.checked){
+        alert('Manual control is disabled. Enable "Manual allowed" to use manual buttons.');
+        return;
+      }
+      manualOverride = true;
+      setLight(true, 'manual');
+      // Clear manual override after a period so auto can resume (unless user disables auto)
+      setTimeout(()=>{ manualOverride = false; }, 1000 * 60 * 5); // 5 minutes
+    });
+    manualOff.addEventListener('click', () => {
+      if(!allowManual.checked){
+        alert('Manual control is disabled. Enable "Manual allowed" to use manual buttons.');
+        return;
+      }
+      manualOverride = true;
+      setLight(false, 'manual');
+      setTimeout(()=>{ manualOverride = false; }, 1000 * 60 * 5);
+    });
+
+    ambientSlider.addEventListener('input', () => {
+      ambientValueSpan.textContent = ambientSlider.value;
+      // If auto mode is active and ambient sensor is used, re-evaluate immediately
+      if(autoMode.checked && useAmbient.checked && !manualOverride){
+        evaluate();
+      }
+    });
+
+    applySchedule.addEventListener('click
